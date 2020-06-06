@@ -8,7 +8,7 @@ library(arules)
 library(arulesViz)
 library(plotly)
 
-data <- read.delim("C:/Users/juanb/OneDrive/GMBD/MACHINE LEARNING I (MBD-EN-BL2020J-1_32R192_369510)/Group Assignment 1 - Unsupervised/grocery_transactional.txt", sep = ',')
+data <- read.delim("data/grocery_transactional.txt", sep = ',')
 
 # https://stackoverflow.com/questions/41620651/long-dataframe-to-transactions-for-arules-in-r
 df <- data %>%

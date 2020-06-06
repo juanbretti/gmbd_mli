@@ -20,7 +20,7 @@ library(ggplot2)
 library(ggpubr)
 
 ## Read data ----
-data <- read.spss('C:/Users/juanb/OneDrive/GMBD/MACHINE LEARNING I (MBD-EN-BL2020J-1_32R192_369510)/Group Assignment 1 - Unsupervised/provinces.sav', to.data.frame=TRUE) %>%
+data <- read.spss('data/provinces.sav', to.data.frame=TRUE) %>%
   mutate(provincia = trimws(provincia)) %>% 
   drop_na()
 skim(data)
