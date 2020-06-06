@@ -11,7 +11,6 @@ library(plotly)
 # Load dats
 data <- read.delim("data/grocery_transactional.txt", sep = ',')
 
-
 # Prepare data
 df <- data %>%
   select(CUSTOMER, PRODUCT) %>%
