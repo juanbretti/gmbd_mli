@@ -58,7 +58,16 @@ plot(subRules, engine = "plotly")
 plot(subRules, method = "matrix", measure = "lift")
 plot(subRules, method = "grouped")
 plot(subRules, method = "graph",  engine = "htmlwidget")
+plot(subRules, method = "paracoord")
 
 # Filter top 20 rules with highest lift
 subRules2<-head(subRules, n=20, by="lift")
-plot(subRules2, method="paracoord")
+
+# Citation
+citation('plyr')
+citation('dplyr')
+citation('tidyr')
+citation('tidyverse')
+citation('arules')
+citation('arulesViz')
+citation('plotly')
