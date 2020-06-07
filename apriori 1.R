@@ -11,54 +11,12 @@ library(arules)
 library(arulesViz)
 library(plotly)
 
-# Load dats
-data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
-
-# Prepare data
-df <- data %>%
-  select(CUSTOMER, PRODUCT) %>%
-  mutate(
-    PRODUCT = trimws(PRODUCT),
-    value = 1) %>%
-  spread(PRODUCT, value, fill = 0) 
-
-tr <- as(as.matrix(df[, -1]), 'transactions')
-(summary_ <- summary(tr))
-
-# Items per ticket histogram
-tibble(`Items per ticket` = factor(names(summary_@lengths), levels = names(summary_@lengths)), Frequency = as.numeric(summary_@lengths)) %>% 
-  ggplot() +
-  geom_bar(aes(x = `Items per ticket`, y = Frequency), stat="identity")
-  
-itemFrequencyPlot(tr, topN=20, type="absolute", main="Absolute Item Frequency Plot")
-itemFrequencyPlot(tr, topN=20, type="relative", main="Relative Item Frequency Plot")
-
-# Checking particular column names
-colnames(df)[grepl('misc|other|milk', colnames(df), ignore.case = TRUE)]
-
-# Remove a few products
-df <- df %>% 
-  select(-all_of(c('whole milk', 'other vegetables', 'misc. beverages')))
-tr <- as(as.matrix(df[, -1]), 'transactions')
-summary(tr)
-
-# Clean up
-rm(association_rules)
-association_rules <- apriori(tr, parameter = list(support=0.002, confidence=0.25, minlen=3, maxlen=5, maxtime = 0))
-# inspect(association_rules)
-
-# Additional columns for measurements
-bind_cols(
-  inspect(association_rules), 
-  interestMeasure(association_rules, c("oddsRatio", "leverage"), transactions = tr)
-)
-
-# Predict
+## Predict ----
 # https://stackoverflow.com/questions/38394113/deploying-apriori-rulsets-to-the-dataset-in-r
 # https://stackoverflow.com/questions/40833925/applying-rules-generated-from-arules-in-r-to-new-transactions
 
 predict_transaction <- function(rules, transaction, sorting = 'confidence') {
-
+  
   # Find all rules whose lhs matches the training example
   rulesMatch <- is.subset(rules@lhs, transaction, sparse = FALSE)
   
@@ -86,7 +44,7 @@ predict_transaction <- function(rules, transaction, sorting = 'confidence') {
     quality_ <- data.frame(support=NA, confidence=NA, coverage=NA, lift=NA, count=NA)
     data_ <- data.frame(items = NA, quality_)
   }
-    
+  
   # Output
   return(list(
     rhs = rhs_,
@@ -97,12 +55,66 @@ predict_transaction <- function(rules, transaction, sorting = 'confidence') {
   ))
 }
 
+## Load data ----
+data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
+
+# Prepare data
+df1 <- data %>%
+  select(CUSTOMER, PRODUCT) %>%
+  mutate(
+    PRODUCT = trimws(PRODUCT),
+    value = 1) %>%
+  spread(PRODUCT, value, fill = 0) 
+
+tr1 <- as(as.matrix(df1[, -1]), 'transactions')
+(summary_ <- summary(tr1))
+
+## EDA ----
+
+# Items per ticket histogram
+tibble(`Items per ticket` = factor(names(summary_@lengths), levels = names(summary_@lengths)), Frequency = as.numeric(summary_@lengths)) %>% 
+  ggplot() +
+  geom_bar(aes(x = `Items per ticket`, y = Frequency), stat="identity")
+  
+itemFrequencyPlot(tr1, topN=20, type="absolute", main="Absolute Item Frequency Plot")
+itemFrequencyPlot(tr1, topN=20, type="relative", main="Relative Item Frequency Plot")
+
+# Checking particular column names
+colnames(df1)[grepl('misc|other|milk', colnames(df), ignore.case = TRUE)]
+
+# Remove a few products
+df2 <- df1 %>% 
+  select(-all_of(c('whole milk', 'other vegetables', 'misc. beverages')))
+tr2 <- as(as.matrix(df2[, -1]), 'transactions')
+summary(tr2)
+
+## Apriori ----
+
+# Clean up
+rm(association_rules)
+association_rules <- apriori(tr2, parameter = list(support=0.002, confidence=0.25, minlen=3, maxlen=5, maxtime = 0))
+
+# Whole milk case
+association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
+inspect(association_rules_whole_milk)
+
+## Usage of the model
+
+# Additional columns for measurements
+bind_cols(
+  inspect(association_rules), 
+  interestMeasure(association_rules, c("oddsRatio", "leverage"), transactions = tr2)
+)
+
 # Predictions applied
 predict_rhs <- bind_cols(
-    df,
-    map_dfr(1:nrow(df), .f = function(x) predict_transaction(association_rules, tr[x])$data)
+    df2,
+    map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
   )
 skim(predict_rhs)
+
+## Explore results ----
+inspect(association_rules)
 
 # Get subset rules in vector
 rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
@@ -113,7 +125,7 @@ rules_subset_filtered<-rules_subset[
   quality(rules_subset)$confidence >= 0.35 &
   quality(rules_subset)$support >= 0.003]
 
-#Plot SubRules
+# Plot SubRules
 # https://cran.r-project.org/web/packages/arulesViz/vignettes/arulesViz.pdf
 plot(rules_subset_filtered)
 plot(rules_subset_filtered, method = "two-key plot")
@@ -123,7 +135,8 @@ plot(rules_subset_filtered, method = "grouped")
 plot(rules_subset_filtered, method = "graph",  engine = "htmlwidget")
 plot(rules_subset_filtered, method = "paracoord")
 
-# Citation
+## Citation ----
+
 citation('plyr')
 citation('dplyr')
 citation('tidyr')
