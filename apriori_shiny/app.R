@@ -1,0 +1,134 @@
+library(shiny)
+library(visNetwork)
+library(tidyverse)
+library(arules)
+library(arulesViz)
+library(plotly)
+
+## Load data ----
+data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
+
+# Prepare data
+set.seed(42)
+df1 <- data %>%
+    select(CUSTOMER, PRODUCT) %>%
+    mutate(
+        PRODUCT = trimws(PRODUCT),
+        value = 1) %>%
+    spread(PRODUCT, value, fill = 0) %>% 
+    sample_frac(0.5)
+
+tr1 <- as(as.matrix(df1[, -1]), 'transactions')
+
+## Apriori ----
+
+# Clean up
+association_rules <- apriori(tr2, parameter = list(support=0.002, confidence=0.25, minlen=3, maxtime = 0))
+
+# Whole milk case
+association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
+inspect(association_rules_whole_milk)
+
+## Define UI for application ----
+ui <- navbarPage(title = "Fresh.Shop",
+    tabPanel("Descriptive",
+             sidebarLayout(
+                 sidebarPanel(
+                     img(src="logo.png",height=150,width=150)
+                 ),
+                 mainPanel(
+                     plotOutput('plot_items_ticket'),
+                     plotOutput('plot_absolute'),
+                     plotOutput('plot_relative')
+                 )
+             )
+    ),
+    tabPanel("All rules",
+             sidebarLayout(
+                 sidebarPanel(
+                     img(src="logo.png",height=150,width=150)
+                 ),
+                 mainPanel(
+                     tabsetPanel(type = "tabs",
+                                 tabPanel("All rules", 
+                                          plotOutput('plot_scatterplot'),
+                                          plotOutput('plot_two_key'),
+                                          plotOutput('plot_grouped')
+                                 ),
+                                 tabPanel("Interactive", 
+                                          plotlyOutput('plot_plotly', height = '800px')
+                                 ),
+                                 tabPanel("Table", 
+                                          DT::dataTableOutput('table_association_rules', height = '800px')
+                                 )
+                     )
+                 )
+             )
+    ),
+    tabPanel("Top rules",
+             sidebarLayout(
+                 sidebarPanel(
+                     img(src="logo.png",height=150,width=150),
+                     sliderInput('top', 'Top rules:', min = 1, max = 50, value = 10),
+                     selectInput('by','Sorting criteria:', choices=c('confidence', 'lift', 'support'))
+                 ),
+                 mainPanel(
+                     tabsetPanel(type = "tabs",
+                                 tabPanel("Top rules", 
+                                          plotOutput('plot_matrix'),
+                                          plotOutput('plot_graph'),
+                                          plotOutput('plot_paracord')
+                                 ),
+                                 tabPanel("Network", 
+                                          visNetworkOutput('plot_graph_html', height = '800px')
+                                 )
+                     )
+                 )
+             )
+     )
+)
+
+## Define server logic ----
+server <- function(input, output) {
+
+    # Items per ticket histogram
+    output$plot_items_ticket <- renderPlot(
+        tibble(`Items per ticket` = factor(names(summary_@lengths), levels = names(summary_@lengths)), Frequency = as.numeric(summary_@lengths)) %>% 
+            ggplot() +
+            geom_bar(aes(x = `Items per ticket`, y = Frequency), stat="identity")
+    )
+    
+    #Fix plots
+    output$plot_absolute <- renderPlot(itemFrequencyPlot(tr1, topN=20, type="absolute", main="Absolute Item Frequency Plot"))
+    output$plot_relative <- renderPlot(itemFrequencyPlot(tr1, topN=20, type="relative", main="Relative Item Frequency Plot"))
+    
+    observeEvent(c(input$top, input$by), ignoreNULL = FALSE, ignoreInit = FALSE, {
+        # Additional columns for measurements
+        output$table_association_rules <- DT::renderDataTable(rules_metrics(association_rules), rownames = FALSE, width = 0.9)
+        
+        # Get subset rules in vector
+        rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
+        rules_subset <- association_rules[-rules_subset] # remove subset rules.
+        rules_subset_filtered<-rules_subset[
+            quality(rules_subset)$lift >= 1 & 
+                quality(rules_subset)$confidence >= 0.25 &
+                quality(rules_subset)$support >= 0.005]
+        rules_subset_filtered_top <- head(rules_subset_filtered, n = input$top, by = input$by)
+        
+        # Plot SubRules
+        # All the rules following the previous criteria
+        output$plot_scatterplot <- renderPlot(plot(rules_subset_filtered, method = "scatterplot", jitter = 0))
+        output$plot_two_key <- renderPlot(plot(rules_subset_filtered, method = "two-key plot", jitter = 0))
+        set.seed(42)
+        output$plot_grouped <- renderPlot(plot(rules_subset_filtered, method = "grouped", jitter = 0))
+        output$plot_plotly <- renderPlotly(plot(rules_subset_filtered, engine = "plotly", jitter = 0))
+        # Top 10 rules
+        output$plot_matrix <- renderPlot(plot(rules_subset_filtered_top, method = "matrix", measure = "lift"))
+        output$plot_graph <- renderPlot(plot(rules_subset_filtered_top, method = "graph", jitter = 0))
+        output$plot_paracord <- renderPlot(plot(rules_subset_filtered_top, method = "paracoord", jitter = 0))
+        output$plot_graph_html <- renderVisNetwork(plot(rules_subset_filtered_top, method = "graph",  engine = "htmlwidget"))
+    })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)

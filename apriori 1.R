@@ -150,6 +150,7 @@ plot(rules_subset_filtered, method = "scatterplot")
 plot(rules_subset_filtered, method = "two-key plot")
 plot(rules_subset_filtered, method = "grouped")
 plot(rules_subset_filtered, method = "iplots")
+plot(rules_subset_filtered, engine = "plotly")
 # plot(rules_subset_filtered, method = "matrix3D")
 # Top 10 rules
 plot(rules_subset_filtered_top, method = "matrix", measure = "lift")
