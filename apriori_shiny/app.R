@@ -8,6 +8,18 @@ library(plotly)
 ## Load data ----
 data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
 
+# Functions
+rules_metrics <- function(rules) {
+    capture.output(
+        out <- bind_cols(
+            inspect(rules), 
+            interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr2),
+            tibble(`lhs length` = size(rules@lhs))
+        )
+    )
+    return(out)
+}
+
 # Prepare data
 set.seed(42)
 df1 <- data %>%
@@ -19,15 +31,16 @@ df1 <- data %>%
     sample_frac(0.5)
 
 tr1 <- as(as.matrix(df1[, -1]), 'transactions')
+summary_ <- summary(tr1)
 
 ## Apriori ----
 
 # Clean up
-association_rules <- apriori(tr2, parameter = list(support=0.002, confidence=0.25, minlen=3, maxtime = 0))
+association_rules <- apriori(tr1, parameter = list(support=0.002, confidence=0.25, minlen=3, maxtime = 0))
 
 # Whole milk case
-association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
-inspect(association_rules_whole_milk)
+# association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
+# inspect(association_rules_whole_milk)
 
 ## Define UI for application ----
 ui <- navbarPage(title = "Fresh.Shop",
@@ -53,7 +66,7 @@ ui <- navbarPage(title = "Fresh.Shop",
                                  tabPanel("All rules", 
                                           plotOutput('plot_scatterplot'),
                                           plotOutput('plot_two_key'),
-                                          plotOutput('plot_grouped')
+                                          plotOutput('plot_grouped', height = '800px')
                                  ),
                                  tabPanel("Interactive", 
                                           plotlyOutput('plot_plotly', height = '800px')
@@ -95,7 +108,8 @@ server <- function(input, output) {
     output$plot_items_ticket <- renderPlot(
         tibble(`Items per ticket` = factor(names(summary_@lengths), levels = names(summary_@lengths)), Frequency = as.numeric(summary_@lengths)) %>% 
             ggplot() +
-            geom_bar(aes(x = `Items per ticket`, y = Frequency), stat="identity")
+            geom_bar(aes(x = `Items per ticket`, y = Frequency), stat="identity") +
+            labs(title="Items per ticket")
     )
     
     #Fix plots
@@ -103,6 +117,8 @@ server <- function(input, output) {
     output$plot_relative <- renderPlot(itemFrequencyPlot(tr1, topN=20, type="relative", main="Relative Item Frequency Plot"))
     
     observeEvent(c(input$top, input$by), ignoreNULL = FALSE, ignoreInit = FALSE, {
+        set.seed(42)
+        
         # Additional columns for measurements
         output$table_association_rules <- DT::renderDataTable(rules_metrics(association_rules), rownames = FALSE, width = 0.9)
         
@@ -119,7 +135,6 @@ server <- function(input, output) {
         # All the rules following the previous criteria
         output$plot_scatterplot <- renderPlot(plot(rules_subset_filtered, method = "scatterplot", jitter = 0))
         output$plot_two_key <- renderPlot(plot(rules_subset_filtered, method = "two-key plot", jitter = 0))
-        set.seed(42)
         output$plot_grouped <- renderPlot(plot(rules_subset_filtered, method = "grouped", jitter = 0))
         output$plot_plotly <- renderPlotly(plot(rules_subset_filtered, engine = "plotly", jitter = 0))
         # Top 10 rules
