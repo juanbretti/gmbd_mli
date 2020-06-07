@@ -10,8 +10,12 @@ library(tidyverse)
 library(arules)
 library(arulesViz)
 library(plotly)
+library(skimr)
+library(iplots)
 
-## Predict ----
+## Functions ----
+
+# Predict
 # https://stackoverflow.com/questions/38394113/deploying-apriori-rulsets-to-the-dataset-in-r
 # https://stackoverflow.com/questions/40833925/applying-rules-generated-from-arules-in-r-to-new-transactions
 
@@ -55,6 +59,18 @@ predict_transaction <- function(rules, transaction, sorting = 'confidence') {
   ))
 }
 
+# Additional metrics
+rules_metrics <- function(rules) {
+  capture.output(
+    out <- bind_cols(
+      inspect(rules), 
+      interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr2),
+      tibble(`lhs length` = size(rules@lhs))
+    )
+  )
+  return(out)
+}
+
 ## Load data ----
 data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
 
@@ -80,38 +96,40 @@ itemFrequencyPlot(tr1, topN=20, type="absolute", main="Absolute Item Frequency P
 itemFrequencyPlot(tr1, topN=20, type="relative", main="Relative Item Frequency Plot")
 
 # Checking particular column names
-colnames(df1)[grepl('misc|other|milk', colnames(df), ignore.case = TRUE)]
+colnames(df1)[grepl('misc|other|milk', colnames(df1), ignore.case = TRUE)]
 
-# Remove a few products
+# Get 50% of the transactions
+set.seed(42)
 df2 <- df1 %>% 
-  select(-all_of(c('whole milk', 'other vegetables', 'misc. beverages')))
+  sample_frac(0.5)
 tr2 <- as(as.matrix(df2[, -1]), 'transactions')
 summary(tr2)
 
 ## Apriori ----
 
 # Clean up
-rm(association_rules)
-association_rules <- apriori(tr2, parameter = list(support=0.002, confidence=0.25, minlen=3, maxlen=5, maxtime = 0))
+association_rules <- apriori(tr2, parameter = list(support=0.002, confidence=0.25, minlen=3, maxtime = 0))
 
 # Whole milk case
 association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
 inspect(association_rules_whole_milk)
 
-## Usage of the model
+## Usage of the model ----
 
 # Additional columns for measurements
-bind_cols(
-  inspect(association_rules), 
-  interestMeasure(association_rules, c("oddsRatio", "leverage"), transactions = tr2)
-)
+rules_metrics(association_rules)
+rules_metrics(association_rules_whole_milk)
 
 # Predictions applied
-predict_rhs <- bind_cols(
-    df2,
-    map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
-  )
-skim(predict_rhs)
+system.time({
+  predict_rhs <- bind_cols(
+      df2,
+      map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
+    )
+  skim(predict_rhs)
+})[3]
+# Example of prediction
+predict_transaction(association_rules, tr2[10])$data
 
 ## Explore results ----
 inspect(association_rules)
@@ -119,24 +137,27 @@ inspect(association_rules)
 # Get subset rules in vector
 rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
 rules_subset <- association_rules[-rules_subset] # remove subset rules.
-# subRules <- head(rules_subset, n = 10, by = "confidence")
 rules_subset_filtered<-rules_subset[
   quality(rules_subset)$lift >= 1 & 
-  quality(rules_subset)$confidence >= 0.35 &
-  quality(rules_subset)$support >= 0.003]
+  quality(rules_subset)$confidence >= 0.25 &
+  quality(rules_subset)$support >= 0.005]
+rules_subset_filtered_top <- head(rules_subset_filtered, n = 10, by = "confidence")
 
 # Plot SubRules
 # https://cran.r-project.org/web/packages/arulesViz/vignettes/arulesViz.pdf
-plot(rules_subset_filtered)
+# All the rules following the previous criteria
+plot(rules_subset_filtered, method = "scatterplot")
 plot(rules_subset_filtered, method = "two-key plot")
-plot(rules_subset_filtered, engine = "plotly")
-plot(rules_subset_filtered, method = "matrix", measure = "lift")
 plot(rules_subset_filtered, method = "grouped")
-plot(rules_subset_filtered, method = "graph",  engine = "htmlwidget")
-plot(rules_subset_filtered, method = "paracoord")
+plot(rules_subset_filtered, method = "iplots")
+# plot(rules_subset_filtered, method = "matrix3D")
+# Top 10 rules
+plot(rules_subset_filtered_top, method = "matrix", measure = "lift")
+plot(rules_subset_filtered_top, method = "graph")
+plot(rules_subset_filtered_top, method = "graph",  engine = "htmlwidget")
+plot(rules_subset_filtered_top, method = "paracoord")
 
 ## Citation ----
-
 citation('plyr')
 citation('dplyr')
 citation('tidyr')
