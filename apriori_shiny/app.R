@@ -2,11 +2,13 @@ library(shiny)
 library(visNetwork)
 library(tidyverse)
 library(data.table)
+library(DT)
 library(arules)
 library(arulesViz)
 library(plotly)
 
-options(DT.options = list(pageLength = 50))
+# https://rstudio.github.io/DT/options.html
+options(DT.options = list(pageLength = 30))
 
 ## Load data ----
 data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
@@ -149,7 +151,7 @@ server <- function(input, output) {
         q_[1] <- 0
         table_association_rules_$cuts <- cut(table_association_rules_[[input$by_split]], breaks=as.numeric(q_), labels = probs_label[5:1], include.lowest = FALSE)
 
-        out <- datatable(table_association_rules_) %>%
+        out <- DT::datatable(table_association_rules_) %>%
             formatStyle(
                 'cuts',
                 target = 'row',
