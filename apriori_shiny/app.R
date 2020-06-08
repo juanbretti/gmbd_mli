@@ -15,10 +15,9 @@ rules_metrics <- function(rules) {
         out <- bind_cols(
             inspect(rules), 
             interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr2),
-            tibble(`lhs length` = size(rules@lhs))
+            data.table(lhs_length = size(rules@lhs))
         )
     )
-    setDT(out)
     colnames(out)[2] <- '_'
     return(out)
 }
