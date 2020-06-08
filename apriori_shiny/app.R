@@ -40,11 +40,11 @@ summary_ <- summary(tr1)
 
 # Clean up
 association_rules <- apriori(tr1, parameter = list(support=0.002, confidence=0.25, minlen=3, maxtime = 0))
-table_association_rules <- rules_metrics(association_rules, tr1)
 
-# aa <- rules_metrics(association_rules, tr2)
-# class(aa)
-# attributes(aa)
+# Saved for solving some issue with the Shiny app server
+# table_association_rules <- rules_metrics(association_rules, tr1)
+# saveRDS(table_association_rules, 'data/table_association_rules.RDS')
+table_association_rules <- readRDS('data/table_association_rules.RDS')
 
 # Whole milk case
 # association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
