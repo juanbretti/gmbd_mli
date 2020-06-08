@@ -60,11 +60,11 @@ predict_transaction <- function(rules, transaction, sorting = 'confidence') {
 }
 
 # Additional metrics
-rules_metrics <- function(rules) {
+rules_metrics <- function(rules, tr) {
   capture.output(
     out <- bind_cols(
       inspect(rules), 
-      interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr2),
+      interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr),
       tibble(`lhs length` = size(rules@lhs))
     )
   )
@@ -118,8 +118,8 @@ inspect(association_rules_whole_milk)
 ## Usage of the model ----
 
 # Additional columns for measurements
-rules_metrics(association_rules)
-rules_metrics(association_rules_whole_milk)
+rules_metrics(association_rules, tr2)
+rules_metrics(association_rules_whole_milk, tr2)
 
 # Predictions applied
 system.time({

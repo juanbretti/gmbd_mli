@@ -10,14 +10,15 @@ library(plotly)
 data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
 
 # Functions
-rules_metrics <- function(rules) {
+rules_metrics <- function(rules, tr) {
     capture.output(
-        out <- cbind(
+        out <- bind_cols(
             inspect(rules), 
-            interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr2),
-            data.table(lhs_length = size(rules@lhs))
+            interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr),
+            tibble(lhs_length = size(rules@lhs))
         )
     )
+    out <- mutate_if(out, is.double, function(x) round(x, 4))
     colnames(out)[2] <- '_'
     return(out)
 }
@@ -39,8 +40,9 @@ summary_ <- summary(tr1)
 
 # Clean up
 association_rules <- apriori(tr1, parameter = list(support=0.002, confidence=0.25, minlen=3, maxtime = 0))
+table_association_rules <- rules_metrics(association_rules, tr1)
 
-# aa <- rules_metrics(association_rules)
+# aa <- rules_metrics(association_rules, tr2)
 # class(aa)
 # attributes(aa)
 
@@ -76,7 +78,7 @@ ui <- navbarPage(title = "Fresh.Shop",
                                  ),
                                  tabPanel("Additional", 
                                           plotOutput('plot_grouped', height = '800px'),
-                                          plotOutput('plot_scatterplot'),
+                                          # plotOutput('plot_scatterplot'),
                                           plotOutput('plot_two_key')
                                  ),
                                  tabPanel("Table", 
@@ -100,8 +102,8 @@ ui <- navbarPage(title = "Fresh.Shop",
                                           visNetworkOutput('plot_graph_html', height = '800px')
                                  ),
                                  tabPanel("Additional", 
+                                          plotlyOutput('plot_matrix'),
                                           plotOutput('plot_graph', height = '800px'),
-                                          plotOutput('plot_matrix'),
                                           plotOutput('plot_paracord')
                                  )
                      )
@@ -125,29 +127,30 @@ server <- function(input, output) {
     output$plot_absolute <- renderPlot(itemFrequencyPlot(tr1, topN=20, type="absolute", main="Absolute Item Frequency Plot"))
     output$plot_relative <- renderPlot(itemFrequencyPlot(tr1, topN=20, type="relative", main="Relative Item Frequency Plot"))
     
+    # Additional columns for measurements
+    output$table_association_rules <- DT::renderDataTable(table_association_rules, rownames = FALSE, width = 0.9)
+
+    # Get subset rules in vector
+    rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
+    rules_subset <- association_rules[-rules_subset] # remove subset rules.
+    rules_subset_filtered<-rules_subset[
+        quality(rules_subset)$lift >= 1 & 
+            quality(rules_subset)$confidence >= 0.25 &
+            quality(rules_subset)$support >= 0.005]
+    
+    # All the rules following the previous criteria
+    output$plot_scatterplot <- renderPlot(plot(rules_subset_filtered, method = "scatterplot", jitter = 0))
+    output$plot_two_key <- renderPlot(plot(rules_subset_filtered, method = "two-key plot", jitter = 0))
+    output$plot_grouped <- renderPlot(plot(rules_subset_filtered, method = "grouped"))
+    output$plot_plotly <- renderPlotly(plot(rules_subset_filtered, engine = "plotly", jitter = 0))
+    
     observeEvent(c(input$top, input$by), ignoreNULL = FALSE, ignoreInit = FALSE, {
         set.seed(42)
         
-        # Additional columns for measurements
-        output$table_association_rules <- DT::renderDataTable(rules_metrics(association_rules), rownames = FALSE, width = 0.9)
-        
-        # Get subset rules in vector
-        rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
-        rules_subset <- association_rules[-rules_subset] # remove subset rules.
-        rules_subset_filtered<-rules_subset[
-            quality(rules_subset)$lift >= 1 & 
-                quality(rules_subset)$confidence >= 0.25 &
-                quality(rules_subset)$support >= 0.005]
         rules_subset_filtered_top <- head(rules_subset_filtered, n = input$top, by = input$by)
         
-        # Plot SubRules
-        # All the rules following the previous criteria
-        output$plot_scatterplot <- renderPlot(plot(rules_subset_filtered, method = "scatterplot", jitter = 0))
-        output$plot_two_key <- renderPlot(plot(rules_subset_filtered, method = "two-key plot", jitter = 0))
-        output$plot_grouped <- renderPlot(plot(rules_subset_filtered, method = "grouped"))
-        output$plot_plotly <- renderPlotly(plot(rules_subset_filtered, engine = "plotly", jitter = 0))
         # Top 10 rules
-        output$plot_matrix <- renderPlot(plot(rules_subset_filtered_top, method = "matrix", measure = "lift"))
+        output$plot_matrix <- renderPlotly(plot(rules_subset_filtered_top, method = "matrix", measure = "lift", engine = "plotly"))
         output$plot_graph <- renderPlot(plot(rules_subset_filtered_top, method = "graph"))
         output$plot_paracord <- renderPlot(plot(rules_subset_filtered_top, method = "paracoord"))
         output$plot_graph_html <- renderVisNetwork(plot(rules_subset_filtered_top, method = "graph",  engine = "htmlwidget"))
