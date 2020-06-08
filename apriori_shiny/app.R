@@ -12,7 +12,7 @@ data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors
 # Functions
 rules_metrics <- function(rules) {
     capture.output(
-        out <- bind_cols(
+        out <- cbind(
             inspect(rules), 
             interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr2),
             data.table(lhs_length = size(rules@lhs))
@@ -40,6 +40,10 @@ summary_ <- summary(tr1)
 # Clean up
 association_rules <- apriori(tr1, parameter = list(support=0.002, confidence=0.25, minlen=3, maxtime = 0))
 
+# aa <- rules_metrics(association_rules)
+# class(aa)
+# attributes(aa)
+
 # Whole milk case
 # association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
 # inspect(association_rules_whole_milk)
@@ -54,8 +58,8 @@ ui <- navbarPage(title = "Fresh.Shop",
                  ),
                  mainPanel(
                      plotOutput('plot_items_ticket'),
-                     plotOutput('plot_absolute'),
-                     plotOutput('plot_relative')
+                     plotOutput('plot_relative'),
+                     plotOutput('plot_absolute')
                  )
              )
     ),
@@ -67,13 +71,13 @@ ui <- navbarPage(title = "Fresh.Shop",
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
-                                 tabPanel("All rules", 
+                                 tabPanel("Interactive", 
+                                          plotlyOutput('plot_plotly', height = '800px')
+                                 ),
+                                 tabPanel("Additional", 
                                           plotOutput('plot_grouped', height = '800px'),
                                           plotOutput('plot_scatterplot'),
                                           plotOutput('plot_two_key')
-                                 ),
-                                 tabPanel("Interactive", 
-                                          plotlyOutput('plot_plotly', height = '800px')
                                  ),
                                  tabPanel("Table", 
                                           DT::dataTableOutput('table_association_rules', height = '800px')
@@ -92,13 +96,13 @@ ui <- navbarPage(title = "Fresh.Shop",
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
-                                 tabPanel("Top rules", 
+                                 tabPanel("Network", 
+                                          visNetworkOutput('plot_graph_html', height = '800px')
+                                 ),
+                                 tabPanel("Additional", 
                                           plotOutput('plot_graph', height = '800px'),
                                           plotOutput('plot_matrix'),
                                           plotOutput('plot_paracord')
-                                 ),
-                                 tabPanel("Network", 
-                                          visNetworkOutput('plot_graph_html', height = '800px')
                                  )
                      )
                  )
