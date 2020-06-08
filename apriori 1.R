@@ -68,6 +68,7 @@ rules_metrics <- function(rules) {
       tibble(`lhs length` = size(rules@lhs))
     )
   )
+  colnames(out)[2] <- '_'
   return(out)
 }
 

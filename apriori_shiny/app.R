@@ -1,6 +1,7 @@
 library(shiny)
 library(visNetwork)
 library(tidyverse)
+library(data.table)
 library(arules)
 library(arulesViz)
 library(plotly)
@@ -17,6 +18,8 @@ rules_metrics <- function(rules) {
             tibble(`lhs length` = size(rules@lhs))
         )
     )
+    setDT(out)
+    colnames(out)[2] <- '_'
     return(out)
 }
 
@@ -47,7 +50,8 @@ ui <- navbarPage(title = "Fresh.Shop",
     tabPanel("Descriptive",
              sidebarLayout(
                  sidebarPanel(
-                     img(src="logo.png",height=150,width=150)
+                     div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
+                     br()
                  ),
                  mainPanel(
                      plotOutput('plot_items_ticket'),
@@ -59,14 +63,15 @@ ui <- navbarPage(title = "Fresh.Shop",
     tabPanel("All rules",
              sidebarLayout(
                  sidebarPanel(
-                     img(src="logo.png",height=150,width=150)
+                     div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
+                     br()
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
                                  tabPanel("All rules", 
+                                          plotOutput('plot_grouped', height = '800px'),
                                           plotOutput('plot_scatterplot'),
-                                          plotOutput('plot_two_key'),
-                                          plotOutput('plot_grouped', height = '800px')
+                                          plotOutput('plot_two_key')
                                  ),
                                  tabPanel("Interactive", 
                                           plotlyOutput('plot_plotly', height = '800px')
@@ -81,15 +86,16 @@ ui <- navbarPage(title = "Fresh.Shop",
     tabPanel("Top rules",
              sidebarLayout(
                  sidebarPanel(
-                     img(src="logo.png",height=150,width=150),
+                     div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
+                     br(),
                      sliderInput('top', 'Top rules:', min = 1, max = 50, value = 10),
                      selectInput('by','Sorting criteria:', choices=c('confidence', 'lift', 'support'))
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
                                  tabPanel("Top rules", 
+                                          plotOutput('plot_graph', height = '800px'),
                                           plotOutput('plot_matrix'),
-                                          plotOutput('plot_graph'),
                                           plotOutput('plot_paracord')
                                  ),
                                  tabPanel("Network", 
@@ -135,12 +141,12 @@ server <- function(input, output) {
         # All the rules following the previous criteria
         output$plot_scatterplot <- renderPlot(plot(rules_subset_filtered, method = "scatterplot", jitter = 0))
         output$plot_two_key <- renderPlot(plot(rules_subset_filtered, method = "two-key plot", jitter = 0))
-        output$plot_grouped <- renderPlot(plot(rules_subset_filtered, method = "grouped", jitter = 0))
+        output$plot_grouped <- renderPlot(plot(rules_subset_filtered, method = "grouped"))
         output$plot_plotly <- renderPlotly(plot(rules_subset_filtered, engine = "plotly", jitter = 0))
         # Top 10 rules
         output$plot_matrix <- renderPlot(plot(rules_subset_filtered_top, method = "matrix", measure = "lift"))
-        output$plot_graph <- renderPlot(plot(rules_subset_filtered_top, method = "graph", jitter = 0))
-        output$plot_paracord <- renderPlot(plot(rules_subset_filtered_top, method = "paracoord", jitter = 0))
+        output$plot_graph <- renderPlot(plot(rules_subset_filtered_top, method = "graph"))
+        output$plot_paracord <- renderPlot(plot(rules_subset_filtered_top, method = "paracoord"))
         output$plot_graph_html <- renderVisNetwork(plot(rules_subset_filtered_top, method = "graph",  engine = "htmlwidget"))
     })
 }
