@@ -54,16 +54,25 @@ rules_subset <- association_rules[-rules_subset] # remove subset rules.
 
 ## Define UI for application ----
 ui <- navbarPage(title = "Fresh.Shop",
-    tabPanel("Descriptive",
+    tabPanel("Top rules",
              sidebarLayout(
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
-                     br()
+                     br(),
+                     sliderInput('top', 'Top rules:', min = 1, max = 50, value = 10),
+                     selectInput('by_sort','Sorting criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support')
                  ),
                  mainPanel(
-                     plotOutput('plot_items_ticket'),
-                     plotOutput('plot_relative'),
-                     plotOutput('plot_absolute')
+                     tabsetPanel(type = "tabs",
+                                 tabPanel("Network", 
+                                          visNetworkOutput('plot_graph_html', height = '800px')
+                                 ),
+                                 tabPanel("Additional", 
+                                          plotlyOutput('plot_matrix'),
+                                          plotOutput('plot_graph', height = '800px'),
+                                          plotOutput('plot_paracord')
+                                 )
+                     )
                  )
              )
     ),
@@ -87,7 +96,7 @@ ui <- navbarPage(title = "Fresh.Shop",
                  )
              )
     ),
-    tabPanel("Strata table",
+    tabPanel("List of rules",
              sidebarLayout(
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
@@ -99,28 +108,30 @@ ui <- navbarPage(title = "Fresh.Shop",
                  )
              )
     ),
-    tabPanel("Top rules",
+    tabPanel("Descriptive",
              sidebarLayout(
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
-                     br(),
-                     sliderInput('top', 'Top rules:', min = 1, max = 50, value = 10),
-                     selectInput('by_sort','Sorting criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support')
+                     br()
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
-                                 tabPanel("Network", 
-                                          visNetworkOutput('plot_graph_html', height = '800px')
+                                 tabPanel("Plots", 
+                                     plotOutput('plot_items_ticket'),
+                                     plotOutput('plot_relative'),
+                                     plotOutput('plot_absolute')
                                  ),
-                                 tabPanel("Additional", 
-                                          plotlyOutput('plot_matrix'),
-                                          plotOutput('plot_graph', height = '800px'),
-                                          plotOutput('plot_paracord')
+                                 tabPanel("Summary",
+                                     h3("Transactions"),
+                                     verbatimTextOutput('summary_tr'),
+                                     br(),
+                                     h3("Association rules"),
+                                     verbatimTextOutput('summary_rules')
+                                    )
                                  )
                      )
-                 )
              )
-     )
+    )
 )
 
 ## Define server logic ----
@@ -163,6 +174,11 @@ server <- function(input, output) {
         output$plot_paracord <- renderPlot(plot(rules_subset_top, method = "paracoord"))
         output$plot_graph_html <- renderVisNetwork(plot(rules_subset_top, method = "graph",  engine = "htmlwidget"))
     })
+    
+    #Summaries
+    output$summary_tr <- renderPrint(summary_)
+    output$summary_rules <- renderPrint(summary(rules_subset))
+
 }
 
 # Run the application 
