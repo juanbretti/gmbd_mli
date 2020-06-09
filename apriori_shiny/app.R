@@ -7,9 +7,6 @@ library(arules)
 library(arulesViz)
 library(plotly)
 
-# https://rstudio.github.io/DT/options.html
-options(DT.options = list(pageLength = 30))
-
 ## Load data ----
 data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
 
@@ -142,9 +139,12 @@ server <- function(input, output) {
     output$plot_relative <- renderPlot(itemFrequencyPlot(tr1, topN=20, type="relative", main="Relative Item Frequency Plot"))
     
     observeEvent(input$by_split, ignoreNULL = FALSE, ignoreInit = FALSE, {
-        out <- DT::datatable(rules_metrics(rules_subset, tr1, input$by_split)) %>%
+        # https://rstudio.github.io/DT/options.html
+        out <- DT::datatable(rules_metrics(rules_subset, tr1, input$by_split),
+                             rownames = FALSE,
+                             list(pageLength = 30, order = list(11, 'desc'))) %>%
             formatStyle('cuts', target = 'row', backgroundColor = styleEqual(probs_label, heat.colors(5)))
-        output$table_association_rules <- DT::renderDataTable(out, rownames = FALSE)
+        output$table_association_rules <- DT::renderDataTable(out)
     })
     
     # All the rules following the previous criteria
