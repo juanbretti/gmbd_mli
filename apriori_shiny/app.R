@@ -60,14 +60,26 @@ ui <- navbarPage(title = "Fresh.Shop",
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
                      br(),
                      sliderInput('top', 'Top rules:', min = 1, max = 50, value = 10),
-                     selectInput('by_sort','Sorting criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support')
+                     selectInput('by_sort','Sorting criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support'),
+                     br(),
+                     span("Select the top rules based on the proposed sorting criteria. It's recommended the 'support'."),
+                     br(),
+                     br(),
+                     span("The 'Network' plot, shows the rules LHS and RHS."),
+                     br(),
+                     span("The size represents the 'support', the color represents the 'lift'")
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
                                  tabPanel("Network", 
+                                          span("Use the drop down or click to selct a node."),
+                                          br(),
+                                          br(),
                                           visNetworkOutput('plot_graph_html', height = '800px')
                                  ),
                                  tabPanel("Additional", 
+                                          span("Click the objects to display the association rule description."),
+                                          br(),
                                           plotlyOutput('plot_matrix'),
                                           plotOutput('plot_graph', height = '800px'),
                                           plotOutput('plot_paracord')
@@ -80,11 +92,12 @@ ui <- navbarPage(title = "Fresh.Shop",
              sidebarLayout(
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
-                     br()
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
                                  tabPanel("Interactive", 
+                                          span("Click the objects to display the association rule description."),
+                                          br(),
                                           plotlyOutput('plot_plotly', height = '800px')
                                  ),
                                  tabPanel("Additional", 
@@ -101,7 +114,15 @@ ui <- navbarPage(title = "Fresh.Shop",
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
                      br(),
-                     selectInput('by_split','Strata criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support')
+                     selectInput('by_split','Strata criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support'),
+                     br(),
+                     span("The color represents how 'hot' is the rule."),
+                     br(),
+                     span("Hotter rule should be taken action first"),
+                     br(),
+                     br(),
+                     span("The rightmost column 'cut', clusters the associations rules")
+                     
                  ),
                  mainPanel(
                       DT::dataTableOutput('table_association_rules', height = '800px')
@@ -112,7 +133,8 @@ ui <- navbarPage(title = "Fresh.Shop",
              sidebarLayout(
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
-                     br()
+                     br(),
+                     span("General descriptive information of the transactions and rules")
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
