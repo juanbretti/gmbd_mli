@@ -5,8 +5,8 @@ account: juanbretti
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2422563
-bundleId: 3244900
+bundleId: 3246031
 url: https://juanbretti.shinyapps.io/mli_apriori/
-when: 1591656814.54575
+when: 1591683809.51623
 asMultiple: FALSE
 asStatic: FALSE

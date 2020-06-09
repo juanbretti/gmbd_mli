@@ -13,17 +13,26 @@ options(DT.options = list(pageLength = 30))
 ## Load data ----
 data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
 
+# Probabilities for groups
+probs <- c(0, 0.075, 0.225, 0.4, 0.225, 0.075)
+probs_label <- paste0(LETTERS[1:5], ' ', probs[2:6]*100, '%')
+
 # Functions
-rules_metrics <- function(rules, tr) {
+rules_metrics <- function(rules, tr, by_split) {
     capture.output(
         out <- bind_cols(
-            inspect(rules), 
+            inspectDT(rules)$x$data, 
             interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr),
             tibble(lhs_length = size(rules@lhs))
         )
     )
+    # 4 decimals
     out <- mutate_if(out, is.double, function(x) round(x, 4))
-    colnames(out)[2] <- '_'
+    # Quantiles
+    q_ <- quantile(out[[by_split]], probs=cumsum(probs))
+    q_[1] <- 0
+    out$cuts <- cut(out[[by_split]], breaks=as.numeric(q_), labels = probs_label[5:1], include.lowest = FALSE)
+    
     return(out)
 }
 
@@ -41,23 +50,10 @@ tr1 <- as(as.matrix(df1[, -1]), 'transactions')
 summary_ <- summary(tr1)
 
 ## Apriori ----
-
-# Clean up
-association_rules <- apriori(tr1, parameter = list(support=0.009, confidence=0.25, minlen=3, maxtime = 0))
-
-# Saved for solving some issue with the Shiny app server
-# table_association_rules <- rules_metrics(association_rules, tr1)
-# saveRDS(table_association_rules, 'data/table_association_rules.RDS')
-table_association_rules <- readRDS('data/table_association_rules.RDS')
-
-# table_association_rules['confidence'] 
-
-probs <- c(0, 0.075, 0.225, 0.4, 0.225, 0.075)
-probs_label <- paste0(LETTERS[1:5], ' ', probs[2:6]*100, '%')
-
-# Whole milk case
-# association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
-# inspect(association_rules_whole_milk)
+association_rules <- apriori(tr1, parameter = list(support=0.005, confidence=0.25, minlen=3, maxtime = 0), control = list(verbose = FALSE))
+# Clean up subset rules
+rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
+rules_subset <- association_rules[-rules_subset] # remove subset rules.
 
 ## Define UI for application ----
 ui <- navbarPage(title = "Fresh.Shop",
@@ -146,45 +142,26 @@ server <- function(input, output) {
     output$plot_relative <- renderPlot(itemFrequencyPlot(tr1, topN=20, type="relative", main="Relative Item Frequency Plot"))
     
     observeEvent(input$by_split, ignoreNULL = FALSE, ignoreInit = FALSE, {
-        table_association_rules_ <- table_association_rules
-        q_ <- quantile(table_association_rules_[[input$by_split]], probs=cumsum(probs))
-        q_[1] <- 0
-        table_association_rules_$cuts <- cut(table_association_rules_[[input$by_split]], breaks=as.numeric(q_), labels = probs_label[5:1], include.lowest = FALSE)
-
-        out <- DT::datatable(table_association_rules_) %>%
-            formatStyle(
-                'cuts',
-                target = 'row',
-                backgroundColor = styleEqual(probs_label, heat.colors(5))
-            )
+        out <- DT::datatable(rules_metrics(rules_subset, tr1, input$by_split)) %>%
+            formatStyle('cuts', target = 'row', backgroundColor = styleEqual(probs_label, heat.colors(5)))
         output$table_association_rules <- DT::renderDataTable(out, rownames = FALSE, width = 0.9)
     })
     
-    # Get subset rules in vector
-    # rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
-    # rules_subset <- association_rules[-rules_subset] # remove subset rules.
-    rules_subset <- association_rules # remove subset rules.
-    rules_subset_filtered<-rules_subset[
-        quality(rules_subset)$lift >= 1 & 
-            quality(rules_subset)$confidence >= 0.25 &
-            quality(rules_subset)$support >= 0.005]
-    
     # All the rules following the previous criteria
-    output$plot_scatterplot <- renderPlot(plot(rules_subset_filtered, method = "scatterplot", jitter = 0))
-    output$plot_two_key <- renderPlot(plot(rules_subset_filtered, method = "two-key plot", jitter = 0))
-    output$plot_grouped <- renderPlot(plot(rules_subset_filtered, method = "grouped"))
-    output$plot_plotly <- renderPlotly(plot(rules_subset_filtered, engine = "plotly", jitter = 0))
+    output$plot_scatterplot <- renderPlot(plot(rules_subset, method = "scatterplot", jitter = 0))
+    output$plot_two_key <- renderPlot(plot(rules_subset, method = "two-key plot", jitter = 0))
+    output$plot_grouped <- renderPlot(plot(rules_subset, method = "grouped"))
+    output$plot_plotly <- renderPlotly(plot(rules_subset, engine = "plotly", jitter = 0))
     
     observeEvent(c(input$top, input$by_sort), ignoreNULL = FALSE, ignoreInit = FALSE, {
         set.seed(42)
         
-        rules_subset_filtered_top <- head(rules_subset_filtered, n = input$top, by = input$by_sort)
-        
         # Top 10 rules
-        output$plot_matrix <- renderPlotly(plot(rules_subset_filtered_top, method = "matrix", measure = "lift", engine = "plotly"))
-        output$plot_graph <- renderPlot(plot(rules_subset_filtered_top, method = "graph"))
-        output$plot_paracord <- renderPlot(plot(rules_subset_filtered_top, method = "paracoord"))
-        output$plot_graph_html <- renderVisNetwork(plot(rules_subset_filtered_top, method = "graph",  engine = "htmlwidget"))
+        rules_subset_top <- head(rules_subset, n = input$top, by = input$by_sort)
+        output$plot_matrix <- renderPlotly(plot(rules_subset_top, method = "matrix", measure = "lift", engine = "plotly"))
+        output$plot_graph <- renderPlot(plot(rules_subset_top, method = "graph"))
+        output$plot_paracord <- renderPlot(plot(rules_subset_top, method = "paracoord"))
+        output$plot_graph_html <- renderVisNetwork(plot(rules_subset_top, method = "graph",  engine = "htmlwidget"))
     })
 }
 

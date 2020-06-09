@@ -108,12 +108,15 @@ summary(tr2)
 
 ## Apriori ----
 
-# Clean up
-association_rules <- apriori(tr2, parameter = list(support=0.002, confidence=0.25, minlen=3, maxtime = 0))
+association_rules <- apriori(tr2, parameter = list(support=0.005, confidence=0.25, minlen=3, maxtime = 0))
+# Clean up subset rules
+rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
+rules_subset <- association_rules[-rules_subset] # remove subset rules.
+# Get subset rules in vector
+rules_subset_top <- head(rules_subset, n = 10, by = "confidence")
 
 # Whole milk case
-association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.01, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
-inspect(association_rules_whole_milk)
+association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.05, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
 
 ## Usage of the model ----
 
@@ -122,42 +125,33 @@ rules_metrics(association_rules, tr2)
 rules_metrics(association_rules_whole_milk, tr2)
 
 # Predictions applied
-system.time({
-  predict_rhs <- bind_cols(
-      df2,
-      map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
-    )
-  skim(predict_rhs)
-})[3]
+# system.time({
+#   predict_rhs <- bind_cols(
+#       df2,
+#       map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
+#     )
+#   skim(predict_rhs)
+# })[3]
 # Example of prediction
 predict_transaction(association_rules, tr2[10])$data
 
 ## Explore results ----
-inspect(association_rules)
-
-# Get subset rules in vector
-rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
-rules_subset <- association_rules[-rules_subset] # remove subset rules.
-rules_subset_filtered<-rules_subset[
-  quality(rules_subset)$lift >= 1 & 
-  quality(rules_subset)$confidence >= 0.25 &
-  quality(rules_subset)$support >= 0.005]
-rules_subset_filtered_top <- head(rules_subset_filtered, n = 10, by = "confidence")
+inspect(rules_subset)
 
 # Plot SubRules
 # https://cran.r-project.org/web/packages/arulesViz/vignettes/arulesViz.pdf
 # All the rules following the previous criteria
-plot(rules_subset_filtered, method = "scatterplot")
-plot(rules_subset_filtered, method = "two-key plot")
-plot(rules_subset_filtered, method = "grouped")
-plot(rules_subset_filtered, method = "iplots")
-plot(rules_subset_filtered, engine = "plotly")
-# plot(rules_subset_filtered, method = "matrix3D")
+plot(rules_subset, method = "scatterplot")
+plot(rules_subset, method = "two-key plot")
+plot(rules_subset, method = "grouped")
+plot(rules_subset, method = "iplots")
+plot(rules_subset, engine = "plotly")
+# plot(rules_subset, method = "matrix3D")
 # Top 10 rules
-plot(rules_subset_filtered_top, method = "matrix", measure = "lift")
-plot(rules_subset_filtered_top, method = "graph")
-plot(rules_subset_filtered_top, method = "graph",  engine = "htmlwidget")
-plot(rules_subset_filtered_top, method = "paracoord")
+plot(rules_subset_top, method = "matrix", measure = "lift")
+plot(rules_subset_top, method = "graph")
+plot(rules_subset_top, method = "graph",  engine = "htmlwidget")
+plot(rules_subset_top, method = "paracoord")
 
 ## Citation ----
 citation('plyr')
