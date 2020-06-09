@@ -28,7 +28,7 @@ rules_metrics <- function(rules, tr, by_split) {
     # Quantiles
     q_ <- quantile(out[[by_split]], probs=cumsum(probs))
     q_[1] <- 0
-    out$cuts <- cut(out[[by_split]], breaks=as.numeric(q_), labels = probs_label[5:1], include.lowest = FALSE)
+    out$cuts <- cut(out[[by_split]], breaks=q_, labels = probs_label[5:1], include.lowest = TRUE)
     
     return(out)
 }
