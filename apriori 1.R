@@ -125,13 +125,13 @@ rules_metrics(association_rules, tr2)
 rules_metrics(association_rules_whole_milk, tr2)
 
 # Predictions applied
-# system.time({
-#   predict_rhs <- bind_cols(
-#       df2,
-#       map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
-#     )
-#   skim(predict_rhs)
-# })[3]
+system.time({
+  predict_rhs <- bind_cols(
+      df2,
+      map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
+    )
+  skim(predict_rhs)
+})[3]
 # Example of prediction
 predict_transaction(association_rules, tr2[10])$data
 
