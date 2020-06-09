@@ -144,7 +144,7 @@ server <- function(input, output) {
     observeEvent(input$by_split, ignoreNULL = FALSE, ignoreInit = FALSE, {
         out <- DT::datatable(rules_metrics(rules_subset, tr1, input$by_split)) %>%
             formatStyle('cuts', target = 'row', backgroundColor = styleEqual(probs_label, heat.colors(5)))
-        output$table_association_rules <- DT::renderDataTable(out, rownames = FALSE, width = 0.9)
+        output$table_association_rules <- DT::renderDataTable(out, rownames = FALSE)
     })
     
     # All the rules following the previous criteria
