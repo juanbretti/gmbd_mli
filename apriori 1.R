@@ -113,7 +113,7 @@ association_rules <- apriori(tr2, parameter = list(support=0.005, confidence=0.2
 rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
 rules_subset <- association_rules[-rules_subset] # remove subset rules.
 # Get subset rules in vector
-rules_subset_top <- head(rules_subset, n = 10, by = "confidence")
+rules_subset_top <- head(rules_subset, n = 10, by = "support")
 
 # Whole milk case
 association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.05, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))

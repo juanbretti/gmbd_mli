@@ -95,7 +95,7 @@ ui <- navbarPage(title = "Fresh.Shop",
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
                      br(),
-                     selectInput('by_split','Strata criteria:', choices=c('confidence', 'lift', 'support'), selected = 'confidence')
+                     selectInput('by_split','Strata criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support')
                  ),
                  mainPanel(
                       DT::dataTableOutput('table_association_rules', height = '800px')
@@ -108,7 +108,7 @@ ui <- navbarPage(title = "Fresh.Shop",
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
                      br(),
                      sliderInput('top', 'Top rules:', min = 1, max = 50, value = 10),
-                     selectInput('by_sort','Sorting criteria:', choices=c('confidence', 'lift', 'support'), selected = 'confidence')
+                     selectInput('by_sort','Sorting criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support')
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
