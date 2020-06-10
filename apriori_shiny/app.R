@@ -82,18 +82,43 @@ ui <- navbarPage(title = "Fresh.Shop",
                                  tabPanel("Additional", 
                                           span("Click the objects to display the association rule description."),
                                           br(),
+                                          plotOutput('plot_grouped_top'),
                                           plotlyOutput('plot_matrix'),
-                                          plotOutput('plot_graph', height = '800px'),
+                                          # plotOutput('plot_graph', height = '800px'),
                                           plotOutput('plot_paracord')
                                  )
                      )
                  )
              )
     ),
-    tabPanel("All rules",
+    tabPanel("Main rules",
              sidebarLayout(
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
+                     br(),
+                     selectInput('by_split','Strata criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support'),
+                     br(),
+                     span("These rules had removed the possible subsets."),
+                     br(),
+                     span("The color represents how 'hot' is the rule."),
+                     br(),
+                     span("Hotter rule should be taken action first"),
+                     br(),
+                     br(),
+                     span("The rightmost column 'cut', clusters the associations rules")
+                     
+                 ),
+                 mainPanel(
+                      DT::dataTableOutput('table_association_rules', height = '800px')
+                 )
+             )
+    ),
+    tabPanel("All additional rules",
+             sidebarLayout(
+                 sidebarPanel(
+                     div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
+                     br(),
+                     span("These rules includes subsets, this means longer rules are included."),
                  ),
                  mainPanel(
                      tabsetPanel(type = "tabs",
@@ -111,27 +136,7 @@ ui <- navbarPage(title = "Fresh.Shop",
                  )
              )
     ),
-    tabPanel("List of rules",
-             sidebarLayout(
-                 sidebarPanel(
-                     div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
-                     br(),
-                     selectInput('by_split','Strata criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support'),
-                     br(),
-                     span("The color represents how 'hot' is the rule."),
-                     br(),
-                     span("Hotter rule should be taken action first"),
-                     br(),
-                     br(),
-                     span("The rightmost column 'cut', clusters the associations rules")
-                     
-                 ),
-                 mainPanel(
-                      DT::dataTableOutput('table_association_rules', height = '800px')
-                 )
-             )
-    ),
-    tabPanel("Descriptive",
+    tabPanel("Descriptive study",
              sidebarLayout(
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
@@ -146,11 +151,14 @@ ui <- navbarPage(title = "Fresh.Shop",
                                      plotOutput('plot_absolute')
                                  ),
                                  tabPanel("Summary",
-                                     h3("Transactions"),
-                                     verbatimTextOutput('summary_tr'),
+                                     h3("Main association rules, without subsets"),
+                                     verbatimTextOutput('summary_rules_subset'),
                                      br(),
-                                     h3("Association rules"),
-                                     verbatimTextOutput('summary_rules')
+                                     h3("All additional association rules"),
+                                     verbatimTextOutput('summary_association_rules'),
+                                     br(),
+                                     h3("Transactions"),
+                                     verbatimTextOutput('summary_tr')
                                     )
                                  )
                      )
@@ -183,10 +191,10 @@ server <- function(input, output) {
     })
     
     # All the rules following the previous criteria
-    output$plot_scatterplot <- renderPlot(plot(rules_subset, method = "scatterplot", jitter = 0))
-    output$plot_two_key <- renderPlot(plot(rules_subset, method = "two-key plot", jitter = 0))
-    output$plot_grouped <- renderPlot(plot(rules_subset, method = "grouped"))
-    output$plot_plotly <- renderPlotly(plot(rules_subset, engine = "plotly", jitter = 0))
+    output$plot_scatterplot <- renderPlot(plot(association_rules, method = "scatterplot", jitter = 0))
+    output$plot_two_key <- renderPlot(plot(association_rules, method = "two-key plot", jitter = 0))
+    output$plot_grouped <- renderPlot(plot(association_rules, method = "grouped"))
+    output$plot_plotly <- renderPlotly(plot(association_rules, engine = "plotly", jitter = 0))
     
     observeEvent(c(input$top, input$by_sort), ignoreNULL = FALSE, ignoreInit = FALSE, {
         set.seed(42)
@@ -197,11 +205,13 @@ server <- function(input, output) {
         output$plot_graph <- renderPlot(plot(rules_subset_top, method = "graph"))
         output$plot_paracord <- renderPlot(plot(rules_subset_top, method = "paracoord"))
         output$plot_graph_html <- renderVisNetwork(plot(rules_subset_top, method = "graph",  engine = "htmlwidget"))
+        output$plot_grouped_top <- renderPlot(plot(rules_subset_top, method = "grouped"))
     })
     
     #Summaries
     output$summary_tr <- renderPrint(summary_)
-    output$summary_rules <- renderPrint(summary(rules_subset))
+    output$summary_association_rules <- renderPrint(summary(association_rules))
+    output$summary_rules_subset <- renderPrint(summary(rules_subset))
 
 }
 
