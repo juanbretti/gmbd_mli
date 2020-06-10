@@ -59,25 +59,19 @@ predict_transaction <- function(rules, transaction, sorting = 'confidence') {
   ))
 }
 
-# Probabilities for groups
-probs <- c(0, 0.075, 0.225, 0.4, 0.225, 0.075)
-probs_label <- paste0(LETTERS[1:5], ' ', probs[2:6]*100, '%')
-
 # Additional metrics
-rules_metrics <- function(rules, tr, by_split=) {
+rules_metrics <- function(rules, tr, by_split= 'support') {
   capture.output(
     out <- bind_cols(
       inspectDT(rules)$x$data, 
-      interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr),
+      interestMeasure(rules, c("oddsRatio", "leverage", "chiSquared"), transactions = tr, significance=TRUE),
       tibble(lhs_length = size(rules@lhs))
     )
   )
   # 4 decimals
   out <- mutate_if(out, is.double, function(x) round(x, 4))
   # Quantiles
-  q_ <- quantile(out[[by_split]], probs=cumsum(probs))
-  q_[1] <- 0
-  out$cuts <- cut(out[[by_split]], breaks=q_, labels = probs_label[5:1], include.lowest = TRUE)
+  out$cuts <- cut(out[[by_split]], breaks=4, labels = LETTERS[4:1], include.lowest=TRUE)
   
   return(out)
 }
@@ -102,7 +96,7 @@ tr1 <- as(as.matrix(df1[, -1]), 'transactions')
 tibble(`Items per ticket` = factor(names(summary_@lengths), levels = names(summary_@lengths)), Frequency = as.numeric(summary_@lengths)) %>% 
   ggplot() +
   geom_bar(aes(x = `Items per ticket`, y = Frequency), stat="identity")
-  
+
 itemFrequencyPlot(tr1, topN=20, type="absolute", main="Absolute Item Frequency Plot")
 itemFrequencyPlot(tr1, topN=20, type="relative", main="Relative Item Frequency Plot")
 
@@ -119,50 +113,52 @@ summary(tr2)
 ## Apriori ----
 
 association_rules <- apriori(tr2, parameter = list(support=0.005, confidence=0.25, minlen=3, maxtime = 0))
-# Sorted descending by 'support'
+# Clean up
 association_rules <- arules::sort(association_rules, by = "support")
-# Clean up redundant rules
 association_rules <- association_rules[!is.redundant(association_rules, measure  = 'support')]
-# Clean up subset rules
-rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
-rules_subset <- association_rules[-rules_subset] # remove subset rules.
+association_rules <- association_rules[is.significant(association_rules)]
 # Get subset rules in vector
-rules_subset_top <- head(rules_subset, n = 10, by = "support")
+association_rules_top <- head(association_rules, n = 10, by = "support")
 
 # Whole milk case
 association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.05, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
+# Clean up
+association_rules_whole_milk <- arules::sort(association_rules_whole_milk, by = "support")
+association_rules_whole_milk <- association_rules_whole_milk[!is.redundant(association_rules_whole_milk, measure  = 'support')]
+association_rules_whole_milk <- association_rules_whole_milk[is.significant(association_rules_whole_milk)]
 
-## Predictions applied ----
-system.time({
-  predict_rhs <- bind_cols(
-      df2,
-      map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
-    )
-  skim(predict_rhs)
-})[3]
-# Example of prediction
-predict_transaction(association_rules, tr2[10])$data
+# ## Predictions applied ----
+# system.time({
+#   predict_rhs <- bind_cols(
+#       df2,
+#       map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
+#     )
+#   skim(predict_rhs)
+# })[3]
+# # Example of prediction
+# predict_transaction(association_rules, tr2[10])$data
 
 ## Explore results ----
 
 # Additional columns for measurements
-rules_metrics(rules_subset, tr2)
-rules_metrics(rules_subset_top, tr2)
+rules_metrics(association_rules, tr2)
+rules_metrics(association_rules_top, tr2)
+rules_metrics(association_rules_whole_milk, tr2)
 
 # Plot SubRules
 # https://cran.r-project.org/web/packages/arulesViz/vignettes/arulesViz.pdf
 # All the rules following the previous criteria
-plot(rules_subset, method = "scatterplot")
-plot(rules_subset, method = "two-key plot")
-plot(rules_subset, method = "grouped")
-plot(rules_subset, method = "iplots")
-plot(rules_subset, engine = "plotly")
+plot(association_rules, method = "scatterplot")
+plot(association_rules, method = "two-key plot")
+plot(association_rules, method = "grouped")
+# plot(association_rules, method = "iplots")
+plot(association_rules, engine = "plotly")
 # plot(rules_subset, method = "matrix3D")
 # Top 10 rules
-plot(rules_subset_top, method = "matrix", measure = "lift")
-plot(rules_subset_top, method = "graph")
-plot(rules_subset_top, method = "graph",  engine = "htmlwidget")
-plot(rules_subset_top, method = "paracoord")
+plot(association_rules_top, method = "matrix", measure = "lift")
+plot(association_rules_top, method = "graph")
+plot(association_rules_top, method = "graph",  engine = "htmlwidget")
+plot(association_rules_top, method = "paracoord")
 
 ## Citation ----
 citation('plyr')

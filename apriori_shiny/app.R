@@ -10,25 +10,19 @@ library(plotly)
 ## Load data ----
 data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
 
-# Probabilities for groups
-probs <- c(0, 0.075, 0.225, 0.4, 0.225, 0.075)
-probs_label <- paste0(LETTERS[1:5], ' ', probs[2:6]*100, '%')
-
-# Functions
-rules_metrics <- function(rules, tr, by_split='support') {
+# Additional metrics
+rules_metrics <- function(rules, tr, by_split= 'support') {
     capture.output(
         out <- bind_cols(
             inspectDT(rules)$x$data, 
-            interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr),
+            interestMeasure(rules, c("oddsRatio", "leverage", "chiSquared"), transactions = tr, significance=TRUE),
             tibble(lhs_length = size(rules@lhs))
         )
     )
     # 4 decimals
     out <- mutate_if(out, is.double, function(x) round(x, 4))
     # Quantiles
-    q_ <- quantile(out[[by_split]], probs=cumsum(probs))
-    q_[1] <- 0
-    out$cuts <- cut(out[[by_split]], breaks=q_, labels = probs_label[5:1], include.lowest = TRUE)
+    out$cuts <- cut(out[[by_split]], breaks=4, labels = LETTERS[4:1], include.lowest=TRUE)
     
     return(out)
 }
@@ -48,11 +42,10 @@ summary_ <- summary(tr1)
 
 ## Apriori ----
 association_rules <- apriori(tr1, parameter = list(support=0.005, confidence=0.25, minlen=3, maxtime = 0), control = list(verbose = FALSE))
-# Sorted descending by 'support'
+# Clean up
 association_rules <- arules::sort(association_rules, by = "support")
-# Clean up subset rules
-rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
-rules_subset <- association_rules[-rules_subset] # remove subset rules.
+association_rules <- association_rules[!is.redundant(association_rules, measure  = 'support')]
+association_rules <- association_rules[is.significant(association_rules)]
 
 ## Define UI for application ----
 ui <- navbarPage(title = "Fresh.Shop",
@@ -91,29 +84,7 @@ ui <- navbarPage(title = "Fresh.Shop",
                  )
              )
     ),
-    tabPanel("Main rules",
-             sidebarLayout(
-                 sidebarPanel(
-                     div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
-                     br(),
-                     selectInput('by_split','Strata criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support'),
-                     br(),
-                     span("These rules had removed the possible subsets."),
-                     br(),
-                     span("The color represents how 'hot' is the rule."),
-                     br(),
-                     span("Hotter rule should be taken action first"),
-                     br(),
-                     br(),
-                     span("The rightmost column 'cut', clusters the associations rules")
-                     
-                 ),
-                 mainPanel(
-                      DT::dataTableOutput('table_association_rules', height = '800px')
-                 )
-             )
-    ),
-    tabPanel("All additional rules",
+    tabPanel("All rules",
              sidebarLayout(
                  sidebarPanel(
                      div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
@@ -136,6 +107,28 @@ ui <- navbarPage(title = "Fresh.Shop",
                  )
              )
     ),
+    tabPanel("Rules list",
+             sidebarLayout(
+                 sidebarPanel(
+                     div(img(src="logo3.png",height=110,width=300), style="text-align: center;"),
+                     br(),
+                     selectInput('by_split','Strata criteria:', choices=c('confidence', 'lift', 'support'), selected = 'support'),
+                     br(),
+                     span("These rules had removed the possible redundant and no-significance"),
+                     br(),
+                     span("The color represents how 'hot' is the rule."),
+                     br(),
+                     span("Hotter rule should be taken action first"),
+                     br(),
+                     br(),
+                     span("The rightmost column 'cut', clusters the associations rules")
+                     
+                 ),
+                 mainPanel(
+                      DT::dataTableOutput('table_association_rules', height = '800px')
+                 )
+             )
+    ),
     tabPanel("Descriptive study",
              sidebarLayout(
                  sidebarPanel(
@@ -151,14 +144,11 @@ ui <- navbarPage(title = "Fresh.Shop",
                                      plotOutput('plot_absolute')
                                  ),
                                  tabPanel("Summary",
-                                     h3("Main association rules, without subsets"),
-                                     verbatimTextOutput('summary_rules_subset'),
-                                     br(),
-                                     h3("All additional association rules"),
-                                     verbatimTextOutput('summary_association_rules'),
-                                     br(),
                                      h3("Transactions"),
-                                     verbatimTextOutput('summary_tr')
+                                     verbatimTextOutput('summary_tr'),
+                                     br(),
+                                     h3("All association rules"),
+                                     verbatimTextOutput('summary_association_rules')
                                     )
                                  )
                      )
@@ -183,10 +173,10 @@ server <- function(input, output) {
     
     observeEvent(input$by_split, ignoreNULL = FALSE, ignoreInit = FALSE, {
         # https://rstudio.github.io/DT/options.html
-        out <- DT::datatable(rules_metrics(rules_subset, tr1, input$by_split),
+        out <- DT::datatable(rules_metrics(association_rules, tr1, input$by_split),
                              rownames = FALSE,
-                             list(pageLength = 30, order = list(11, 'desc'))) %>%
-            formatStyle('cuts', target = 'row', backgroundColor = styleEqual(probs_label, heat.colors(5)))
+                             list(pageLength = 30, order = list(12, 'desc'))) %>%
+            formatStyle('cuts', target = 'row', backgroundColor = styleEqual(LETTERS[4:1], heat.colors(4)))
         output$table_association_rules <- DT::renderDataTable(out)
     })
     
@@ -200,18 +190,17 @@ server <- function(input, output) {
         set.seed(42)
         
         # Top 10 rules
-        rules_subset_top <- head(rules_subset, n = input$top, by = input$by_sort)
-        output$plot_matrix <- renderPlotly(plot(rules_subset_top, method = "matrix", measure = "lift", engine = "plotly"))
-        output$plot_graph <- renderPlot(plot(rules_subset_top, method = "graph"))
-        output$plot_paracord <- renderPlot(plot(rules_subset_top, method = "paracoord"))
-        output$plot_graph_html <- renderVisNetwork(plot(rules_subset_top, method = "graph",  engine = "htmlwidget"))
-        output$plot_grouped_top <- renderPlot(plot(rules_subset_top, method = "grouped"))
+        association_rules_top <- head(association_rules, n = input$top, by = input$by_sort)
+        output$plot_matrix <- renderPlotly(plot(association_rules_top, method = "matrix", measure = "lift", engine = "plotly"))
+        output$plot_graph <- renderPlot(plot(association_rules_top, method = "graph"))
+        output$plot_paracord <- renderPlot(plot(association_rules_top, method = "paracoord"))
+        output$plot_graph_html <- renderVisNetwork(plot(association_rules_top, method = "graph",  engine = "htmlwidget"))
+        output$plot_grouped_top <- renderPlot(plot(association_rules_top, method = "grouped"))
     })
     
     #Summaries
     output$summary_tr <- renderPrint(summary_)
     output$summary_association_rules <- renderPrint(summary(association_rules))
-    output$summary_rules_subset <- renderPrint(summary(rules_subset))
 
 }
 
