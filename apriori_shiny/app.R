@@ -73,10 +73,11 @@ ui <- navbarPage(title = "Fresh.Shop",
                                           visNetworkOutput('plot_graph_html', height = '800px')
                                  ),
                                  tabPanel("Additional", 
+                                          plotlyOutput('plot_matrix'),
+                                          br(),
                                           span("Click the objects to display the association rule description."),
                                           br(),
                                           plotOutput('plot_grouped_top'),
-                                          plotlyOutput('plot_matrix'),
                                           # plotOutput('plot_graph', height = '800px'),
                                           plotOutput('plot_paracord')
                                  )
@@ -176,7 +177,7 @@ server <- function(input, output) {
         out <- DT::datatable(rules_metrics(association_rules, tr1, input$by_split),
                              rownames = FALSE,
                              list(pageLength = 30, order = list(12, 'desc'))) %>%
-            formatStyle('cuts', target = 'row', backgroundColor = styleEqual(LETTERS[4:1], heat.colors(4)))
+            formatStyle('cuts', target = 'row', backgroundColor = styleEqual(LETTERS[1:4], heat.colors(4)))
         output$table_association_rules <- DT::renderDataTable(out)
     })
     
