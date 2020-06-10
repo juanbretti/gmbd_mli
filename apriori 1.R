@@ -59,16 +59,26 @@ predict_transaction <- function(rules, transaction, sorting = 'confidence') {
   ))
 }
 
+# Probabilities for groups
+probs <- c(0, 0.075, 0.225, 0.4, 0.225, 0.075)
+probs_label <- paste0(LETTERS[1:5], ' ', probs[2:6]*100, '%')
+
 # Additional metrics
-rules_metrics <- function(rules, tr) {
+rules_metrics <- function(rules, tr, by_split=) {
   capture.output(
     out <- bind_cols(
-      inspect(rules), 
+      inspectDT(rules)$x$data, 
       interestMeasure(rules, c("oddsRatio", "leverage"), transactions = tr),
-      tibble(`lhs length` = size(rules@lhs))
+      tibble(lhs_length = size(rules@lhs))
     )
   )
-  colnames(out)[2] <- '_'
+  # 4 decimals
+  out <- mutate_if(out, is.double, function(x) round(x, 4))
+  # Quantiles
+  q_ <- quantile(out[[by_split]], probs=cumsum(probs))
+  q_[1] <- 0
+  out$cuts <- cut(out[[by_split]], breaks=q_, labels = probs_label[5:1], include.lowest = TRUE)
+  
   return(out)
 }
 
@@ -109,6 +119,10 @@ summary(tr2)
 ## Apriori ----
 
 association_rules <- apriori(tr2, parameter = list(support=0.005, confidence=0.25, minlen=3, maxtime = 0))
+# Sorted descending by 'support'
+association_rules <- arules::sort(association_rules, by = "support")
+# Clean up redundant rules
+association_rules <- association_rules[!is.redundant(association_rules, measure  = 'support')]
 # Clean up subset rules
 rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
 rules_subset <- association_rules[-rules_subset] # remove subset rules.
@@ -118,13 +132,7 @@ rules_subset_top <- head(rules_subset, n = 10, by = "support")
 # Whole milk case
 association_rules_whole_milk <- apriori(tr1, parameter = list(support=0.05, confidence=0.1, minlen=2, maxtime = 0), appearance = list(lhs="whole milk", default="rhs"))
 
-## Usage of the model ----
-
-# Additional columns for measurements
-rules_metrics(association_rules, tr2)
-rules_metrics(association_rules_whole_milk, tr2)
-
-# Predictions applied
+## Predictions applied ----
 system.time({
   predict_rhs <- bind_cols(
       df2,
@@ -136,7 +144,10 @@ system.time({
 predict_transaction(association_rules, tr2[10])$data
 
 ## Explore results ----
-inspect(rules_subset)
+
+# Additional columns for measurements
+rules_metrics(rules_subset, tr2)
+rules_metrics(rules_subset_top, tr2)
 
 # Plot SubRules
 # https://cran.r-project.org/web/packages/arulesViz/vignettes/arulesViz.pdf

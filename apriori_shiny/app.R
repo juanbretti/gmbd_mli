@@ -15,7 +15,7 @@ probs <- c(0, 0.075, 0.225, 0.4, 0.225, 0.075)
 probs_label <- paste0(LETTERS[1:5], ' ', probs[2:6]*100, '%')
 
 # Functions
-rules_metrics <- function(rules, tr, by_split) {
+rules_metrics <- function(rules, tr, by_split='support') {
     capture.output(
         out <- bind_cols(
             inspectDT(rules)$x$data, 
@@ -48,6 +48,8 @@ summary_ <- summary(tr1)
 
 ## Apriori ----
 association_rules <- apriori(tr1, parameter = list(support=0.005, confidence=0.25, minlen=3, maxtime = 0), control = list(verbose = FALSE))
+# Sorted descending by 'support'
+association_rules <- arules::sort(association_rules, by = "support")
 # Clean up subset rules
 rules_subset <- which(colSums(is.subset(association_rules, association_rules)) > 1)
 rules_subset <- association_rules[-rules_subset] # remove subset rules.
