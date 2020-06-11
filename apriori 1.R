@@ -60,11 +60,11 @@ predict_transaction <- function(rules, transaction, sorting = 'confidence') {
 }
 
 # Additional metrics
-rules_metrics <- function(rules, tr, by_split= 'support') {
+rules_metrics <- function(rules, by_split= 'support') {
   capture.output(
     out <- bind_cols(
       inspectDT(rules)$x$data, 
-      interestMeasure(rules, c("oddsRatio", "leverage", "chiSquared"), transactions = tr, significance=TRUE),
+      interestMeasure(rules, c("oddsRatio", "leverage", "chiSquared"), significance=TRUE),
       tibble(lhs_length = size(rules@lhs))
     )
   )
@@ -141,10 +141,10 @@ predict_transaction(association_rules, tr2[10])$data
 ## Explore results ----
 
 # Additional columns for measurements
-rules_metrics(association_rules, tr2)
-rules_metrics(association_rules_top, tr2) %>% 
+rules_metrics(association_rules)
+rules_metrics(association_rules_top) %>% 
   write.csv('temp.csv')
-rules_metrics(association_rules_whole_milk, tr2)
+rules_metrics(association_rules_whole_milk)
 
 # Plot SubRules
 # https://cran.r-project.org/web/packages/arulesViz/vignettes/arulesViz.pdf
