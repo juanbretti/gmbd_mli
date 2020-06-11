@@ -127,16 +127,16 @@ association_rules_whole_milk <- arules::sort(association_rules_whole_milk, by = 
 association_rules_whole_milk <- association_rules_whole_milk[!is.redundant(association_rules_whole_milk, measure  = 'support')]
 association_rules_whole_milk <- association_rules_whole_milk[is.significant(association_rules_whole_milk)]
 
-# ## Predictions applied ----
-# system.time({
-#   predict_rhs <- bind_cols(
-#       df2,
-#       map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
-#     )
-#   skim(predict_rhs)
-# })[3]
-# # Example of prediction
-# predict_transaction(association_rules, tr2[10])$data
+## Predictions applied ----
+system.time({
+  predict_rhs <- bind_cols(
+      df2,
+      map_dfr(1:nrow(df2), .f = function(x) predict_transaction(association_rules, tr2[x])$data)
+    )
+  skim(predict_rhs)
+})[3]
+# Example of prediction
+predict_transaction(association_rules, tr2[10])$data
 
 ## Explore results ----
 
