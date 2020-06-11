@@ -142,7 +142,8 @@ association_rules_whole_milk <- association_rules_whole_milk[is.significant(asso
 
 # Additional columns for measurements
 rules_metrics(association_rules, tr2)
-rules_metrics(association_rules_top, tr2)
+rules_metrics(association_rules_top, tr2) %>% 
+  write.csv('temp.csv')
 rules_metrics(association_rules_whole_milk, tr2)
 
 # Plot SubRules
