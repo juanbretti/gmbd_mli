@@ -155,8 +155,6 @@ plot(association_rules, method = "grouped")
 
 #grouped matrix for top 10 rules
 plot(association_rules_top, method = "grouped")
-#metric table for top 10 rules 
-rules_metrics(association_rules_top)
 
 # plot(association_rules, method = "iplots")
 plot(association_rules, engine = "plotly")
