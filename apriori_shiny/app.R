@@ -11,11 +11,11 @@ library(plotly)
 data <- read.delim("data/grocery_transactional.txt", sep = ',', stringsAsFactors = FALSE)
 
 # Additional metrics
-rules_metrics <- function(rules, tr, by_split= 'support') {
+rules_metrics <- function(rules, by_split= 'support') {
     capture.output(
         out <- bind_cols(
             inspectDT(rules)$x$data, 
-            interestMeasure(rules, c("oddsRatio", "leverage", "chiSquared"), transactions = tr, significance=TRUE),
+            interestMeasure(rules, c("oddsRatio", "leverage", "chiSquared"), significance=TRUE),
             tibble(lhs_length = size(rules@lhs))
         )
     )
@@ -174,7 +174,7 @@ server <- function(input, output) {
     
     observeEvent(input$by_split, ignoreNULL = FALSE, ignoreInit = FALSE, {
         # https://rstudio.github.io/DT/options.html
-        out <- DT::datatable(rules_metrics(association_rules, tr1, input$by_split),
+        out <- DT::datatable(rules_metrics(association_rules, input$by_split),
                              rownames = FALSE,
                              list(pageLength = 30, order = list(12, 'desc'))) %>%
             formatStyle('cuts', target = 'row', backgroundColor = styleEqual(LETTERS[1:4], heat.colors(4)))
