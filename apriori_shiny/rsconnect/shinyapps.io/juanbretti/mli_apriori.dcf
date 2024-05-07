@@ -1,0 +1,12 @@
+name: mli_apriori
+title: mli_apriori
+username:
+account: juanbretti
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2422563
+bundleId: 3258633
+url: https://juanbretti.shinyapps.io/mli_apriori/
+when: 1591906727.3281
+asMultiple: FALSE
+asStatic: FALSE
